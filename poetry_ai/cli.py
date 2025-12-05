@@ -10,7 +10,7 @@ from typing import Optional
 from datasets import Dataset
 
 from .data import DatasetBuilder, PoemScraper, ScraperConfig
-from .generation import GenerationConfig, PoemGenerator
+from .generation import GenerationConfig, PoemGenerator, rhyme_suffix
 from .training import PoetryTrainer, TrainingConfig
 
 logging.basicConfig(level=logging.INFO)
@@ -76,7 +76,24 @@ def run_generate(args):
         )
     )
     poem = gen.generate(args.prompt, lines=args.lines)
-    print("\n".join(poem))
+    if not poem:
+        print("Не вдалося згенерувати вірш із заданими обмеженнями рими/складів.")
+        return
+
+    decorated = []
+    for idx, line in enumerate(poem):
+        label = args.rhyme_scheme[idx % len(args.rhyme_scheme)]
+        last_word = line.split()[-1] if line.split() else ""
+        suffix = rhyme_suffix(last_word) if last_word else ""
+        decorated.append(f"{idx + 1:>2}. ({label}:{suffix})  {line}")
+
+    frame_width = max(len(line) for line in decorated)
+    horizontal = "═" * (frame_width + 2)
+    print(f"╔{horizontal}╗")
+    for line in decorated:
+        padding = " " * (frame_width - len(line))
+        print(f"║ {line}{padding} ║")
+    print(f"╚{horizontal}╝")
 
 
 def main():

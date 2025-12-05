@@ -21,14 +21,14 @@ pip install -r requirements.txt
 ## Скрапінг (опційно)
 ```bash
 python -m poetry_ai.cli scrape \
-  https://example.org/poems \
-  "div.poem" \
-  "p" \
-  --title-selector "h2" \
+  https://poetryclub.com.ua/metrs/index.php \
+  "div.vers" \
+  "div.vers > p" \
+  --title-selector "div.vers > h3" \
   --start-page 1 --end-page 3 \
   --output scraped_poems.json
 ```
-Скрапер перевіряє `robots.txt`; якщо сайт забороняє обходи, буде кинуто помилку.
+Скрапер перевіряє `robots.txt`; якщо сайт забороняє обходи, буде кинуто помилку. Приклад вище використовує реальний сайт з каталогом віршів `poetryclub.com.ua` (розмітка актуальна станом на 2024‑12, блок вірша має `div.vers` із параграфами всередині). Якщо структура сторінки зміниться, підберіть актуальні CSS‑селектори.
 
 ## Тренування
 ```bash
