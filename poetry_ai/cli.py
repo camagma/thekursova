@@ -1,4 +1,12 @@
-"""Command-line interface for building, training, and using the poetry model."""
+"""Command-line interface for building, training, and using the poetry model.
+
+The module supports two invocation styles:
+1) Preferred: ``python -m poetry_ai.cli <command> ...``
+2) Direct script call: ``python poetry_ai/cli.py <command> ...``
+
+The fallback import shim below keeps relative imports working when the file is
+executed as a script (avoiding ``ImportError: attempted relative import``).
+"""
 from __future__ import annotations
 
 import argparse
@@ -9,15 +17,26 @@ from typing import Optional
 
 from datasets import Dataset
 
-from .data import DatasetBuilder, PoemScraper, ScraperConfig
-from .generation import GenerationConfig, PoemGenerator, rhyme_suffix
-from .training import PoetryTrainer, TrainingConfig
+try:  # pragma: no cover - import shim for script-style execution
+    from .data import DatasetBuilder, PoemScraper, ScraperConfig
+    from .generation import GenerationConfig, PoemGenerator, rhyme_suffix
+    from .training import PoetryTrainer, TrainingConfig
+except ImportError:  # when __package__ is None (python poetry_ai/cli.py)
+    import sys
+
+    ROOT = Path(__file__).resolve().parent.parent
+    if str(ROOT) not in sys.path:
+        sys.path.append(str(ROOT))
+    from poetry_ai.data import DatasetBuilder, PoemScraper, ScraperConfig
+    from poetry_ai.generation import GenerationConfig, PoemGenerator, rhyme_suffix
+    from poetry_ai.training import PoetryTrainer, TrainingConfig
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_HF_DATASET = "staliuk/ukrainian-poetry"
+DEFAULT_MODEL = "facebook/xglm-564M"
 
 
 def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> Dataset:
@@ -114,7 +133,7 @@ def main():
     train = sub.add_parser("train", help="Fine-tune the model on poetry")
     train.add_argument("--dataset", default=DEFAULT_HF_DATASET, help="Hugging Face dataset name")
     train.add_argument("--scraped", help="Optional path to scraped_poems.json")
-    train.add_argument("--model-name", default="ai-forever/rugpt3small_based_on_gpt2", help="Base model to fine-tune")
+    train.add_argument("--model-name", default=DEFAULT_MODEL, help="Base model to fine-tune")
     train.add_argument("--output-dir", default="poetry-model", help="Where to save the fine-tuned model")
     train.add_argument("--max-length", type=int, default=256)
     train.add_argument("--train-batch-size", type=int, default=4)

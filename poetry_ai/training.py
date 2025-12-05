@@ -19,7 +19,7 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class TrainingConfig:
-    model_name: str = "ai-forever/rugpt3small_based_on_gpt2"
+    model_name: str = "facebook/xglm-564M"
     output_dir: str = "poetry-model"
     max_length: int = 256
     train_batch_size: int = 4
