@@ -12,11 +12,18 @@
 За замовчуванням використовується велика багатомовна модель `facebook/xglm-1.7B` (локально, без API) — вона краще відтворює українську морфологію та рими, ніж менші GPT-2 похідні. Якщо ресурсів мало, можна переключитись на компактніші варіанти (`facebook/xglm-564M`, `google/mt5-small`, `ai-forever/rugpt3medium_based_on_gpt2`) через параметр `--model-name`.
 
 ## Встановлення
+Щоб команда `python -m poetry_ai.cli ...` працювала з будь-якої директорії без помилки
+`ModuleNotFoundError: No module named 'poetry_ai'`, встановіть пакет в editable-режимі:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .  # реєструє poetry_ai як встановлений пакет
 ```
+
+Альтернатива без встановлення — запускати команди з кореня репозиторію або додати
+`PYTHONPATH=$(pwd)` перед викликом (`PYTHONPATH=$(pwd) python -m poetry_ai.cli ...`).
 
 ## Скрапінг (опційно)
 ```bash
