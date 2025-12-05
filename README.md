@@ -9,7 +9,7 @@
 - `poetry_ai.cli` — CLI з підкомандами `scrape`, `train`, `generate`.
 
 ## Вибір базової моделі
-За замовчуванням використовується `facebook/xglm-564M` (локально, без API). Модель багатомовна і на практиці дає кращу якість українських текстів, ніж невеликі російськомовні GPT-2. За потреби замініть на іншу україномовну/багатомовну модель (`google/mt5-small`, `ai-forever/rugpt3medium_based_on_gpt2`, тощо) через параметр `--model-name`.
+За замовчуванням використовується велика багатомовна модель `facebook/xglm-1.7B` (локально, без API) — вона краще відтворює українську морфологію та рими, ніж менші GPT-2 похідні. Якщо ресурсів мало, можна переключитись на компактніші варіанти (`facebook/xglm-564M`, `google/mt5-small`, `ai-forever/rugpt3medium_based_on_gpt2`) через параметр `--model-name`.
 
 ## Встановлення
 ```bash
@@ -20,22 +20,19 @@ pip install -r requirements.txt
 
 ## Скрапінг (опційно)
 ```bash
-# Приклад для реального сайту з пагінацією page=N
-python -m poetry_ai.cli scrape \
-  https://poetryclub.com.ua/metrs/index.php \
-  "div.vers" \
-  "div.vers > p" \
-  --title-selector "div.vers > h3" \
-  --start-page 1 --end-page 3 \
-  --output scraped_poems.json
+# Найзручніше — використати готовий профіль парсера для poetryclub.com.ua
+python -m poetry_ai.cli scrape --preset poetryclub --start-page 1 --end-page 5 --output scraped_poems.json
 
-# Альтернатива: прямі URL з пагінацією ?page=N (поети або теми)
+# За потреби профіль можна перевизначити адресою та селекторами
 # python -m poetry_ai.cli scrape \
-#   "https://poetryclub.com.ua/listpoems.php" \
-#   "div.vers" "div.vers > p" --title-selector "div.vers > h3" \
-#   --start-page 1 --end-page 5 --output scraped_poems.json
+#   https://poetryclub.com.ua/listpoems.php \
+#   "div.vers" \
+#   "div.vers > p" \
+#   --title-selector "div.vers > h3" \
+#   --start-page 1 --end-page 5 \
+#   --output scraped_poems.json
 ```
-Скрапер перевіряє `robots.txt`; якщо сайт забороняє обходи, буде кинуто помилку. Приклад вище використовує реальний сайт `https://poetryclub.com.ua` із відкритим каталогом віршів: кожна сторінка списку містить блоки `div.vers` з параграфами рядків. Якщо структура сторінки зміниться або є інша розмітка (наприклад, інша секція каталогу), підберіть актуальні CSS‑селектори.
+Скрапер перевіряє `robots.txt` (перевірку можна вимкнути в коді, але це не рекомендується); якщо сайт забороняє обходи, буде кинуто помилку. Профіль `poetryclub` використовує реальний каталог `https://poetryclub.com.ua/listpoems.php` із блоками `div.vers` і заголовком `h3`. Якщо структура сторінки зміниться, можна передати власні селектори або створити новий профіль у `SCRAPER_PRESETS`.
 
 > Порада: запускайте CLI через `python -m poetry_ai.cli ...`, щоб уникнути помилки `ImportError: attempted relative import with no known parent package` при прямому виклику файлів.
 
@@ -44,7 +41,7 @@ python -m poetry_ai.cli scrape \
 python -m poetry_ai.cli train \
   --dataset staliuk/ukrainian-poetry \
   --scraped scraped_poems.json \
-  --model-name facebook/xglm-564M \
+  --model-name facebook/xglm-1.7B \
   --output-dir poetry-model \
   --max-length 256 --train-batch-size 2 --num-train-epochs 3
 ```
@@ -55,6 +52,7 @@ python -m poetry_ai.cli generate "Осінній вечір над містом"
   --model-path poetry-model \
   --lines 4 --rhyme-scheme ABAB --expected-syllables 10
 ```
+CLI виводить вірш у рамці, підписує римну групу, суфікс рими та підрахунок складів у кожному рядку.
 
 ## Перевірки якості
 - Скрапінг: 3–5 тестових сторінок, обробка помилок HTTP.

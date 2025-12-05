@@ -58,6 +58,35 @@ class ScraperConfig:
     end_page: int = 3
     delay_seconds: float = 1.0
     user_agent: str = "poetry-research-bot/0.1"
+    obey_robots: bool = True
+
+
+# Pre-configured selectors for popular open catalogs.
+SCRAPER_PRESETS = {
+    # poetryclub.com.ua provides a catalogue of poems with ?page=N pagination
+    # and poem blocks under div.vers with an optional h3 title.
+    "poetryclub": ScraperConfig(
+        base_url="https://poetryclub.com.ua/listpoems.php",
+        poem_selector="div.vers",
+        paragraph_selector="div.vers > p",
+        title_selector="div.vers > h3",
+        start_page=1,
+        end_page=5,
+        delay_seconds=1.2,
+        obey_robots=True,
+    ),
+    # Another catalogue page that groups poems by meter (fallback example).
+    "poetryclub-meter": ScraperConfig(
+        base_url="https://poetryclub.com.ua/metrs/index.php",
+        poem_selector="div.vers",
+        paragraph_selector="div.vers > p",
+        title_selector="div.vers > h3",
+        start_page=1,
+        end_page=3,
+        delay_seconds=1.2,
+        obey_robots=True,
+    ),
+}
 
 
 class PoemScraper:
@@ -71,6 +100,9 @@ class PoemScraper:
         self.config = config
 
     def _allowed(self) -> bool:
+        if not self.config.obey_robots:
+            LOGGER.warning("Robots.txt check disabled by configuration; crawl responsibly.")
+            return True
         robots_url = urljoin(self.config.base_url, "/robots.txt")
         headers = {"User-Agent": self.config.user_agent}
         try:
@@ -159,4 +191,5 @@ __all__ = [
     "PoemScraper",
     "DatasetBuilder",
     "clean_poem_text",
+    "SCRAPER_PRESETS",
 ]

@@ -18,7 +18,7 @@ from typing import Optional
 from datasets import Dataset
 
 try:  # pragma: no cover - import shim for script-style execution
-    from .data import DatasetBuilder, PoemScraper, ScraperConfig
+    from .data import DatasetBuilder, PoemScraper, ScraperConfig, SCRAPER_PRESETS
     from .generation import GenerationConfig, PoemGenerator, rhyme_suffix
     from .training import PoetryTrainer, TrainingConfig
 except ImportError:  # when __package__ is None (python poetry_ai/cli.py)
@@ -27,7 +27,7 @@ except ImportError:  # when __package__ is None (python poetry_ai/cli.py)
     ROOT = Path(__file__).resolve().parent.parent
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
-    from poetry_ai.data import DatasetBuilder, PoemScraper, ScraperConfig
+    from poetry_ai.data import DatasetBuilder, PoemScraper, ScraperConfig, SCRAPER_PRESETS
     from poetry_ai.generation import GenerationConfig, PoemGenerator, rhyme_suffix
     from poetry_ai.training import PoetryTrainer, TrainingConfig
 
@@ -36,7 +36,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 DEFAULT_HF_DATASET = "staliuk/ukrainian-poetry"
-DEFAULT_MODEL = "facebook/xglm-564M"
+DEFAULT_MODEL = "facebook/xglm-1.7B"
 
 
 def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> Dataset:
@@ -51,16 +51,40 @@ def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> Dataset:
     return ds_dict
 
 
-def run_scrape(args):
-    config = ScraperConfig(
+def build_scraper_config(args) -> ScraperConfig:
+    if args.preset:
+        base = SCRAPER_PRESETS[args.preset]
+        config = ScraperConfig(
+            base_url=args.base_url or base.base_url,
+            poem_selector=args.poem_selector or base.poem_selector,
+            paragraph_selector=args.paragraph_selector or base.paragraph_selector,
+            title_selector=args.title_selector or base.title_selector,
+            page_param=base.page_param,
+            start_page=args.start_page or base.start_page,
+            end_page=args.end_page or base.end_page,
+            delay_seconds=args.delay if args.delay is not None else base.delay_seconds,
+            user_agent=base.user_agent,
+            obey_robots=base.obey_robots,
+        )
+        LOGGER.info("Using preset '%s' with base URL %s", args.preset, config.base_url)
+        return config
+
+    if not (args.base_url and args.poem_selector and args.paragraph_selector):
+        raise SystemExit("When no preset is specified, base_url and selectors are required.")
+
+    return ScraperConfig(
         base_url=args.base_url,
         poem_selector=args.poem_selector,
         paragraph_selector=args.paragraph_selector,
         title_selector=args.title_selector,
         start_page=args.start_page,
         end_page=args.end_page,
-        delay_seconds=args.delay,
+        delay_seconds=args.delay if args.delay is not None else 1.0,
     )
+
+
+def run_scrape(args):
+    config = build_scraper_config(args)
     scraper = PoemScraper(config)
     poems = scraper.scrape()
     output = Path(args.output)
@@ -104,7 +128,8 @@ def run_generate(args):
         label = args.rhyme_scheme[idx % len(args.rhyme_scheme)]
         last_word = line.split()[-1] if line.split() else ""
         suffix = rhyme_suffix(last_word) if last_word else ""
-        decorated.append(f"{idx + 1:>2}. ({label}:{suffix})  {line}")
+        syllables = sum(ch.lower() in "аеєиіїоуюя" for ch in line.lower())
+        decorated.append(f"{idx + 1:>2}. ({label}:{suffix}, {syllables} складів)  {line}")
 
     frame_width = max(len(line) for line in decorated)
     horizontal = "═" * (frame_width + 2)
@@ -120,13 +145,14 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     scrape = sub.add_parser("scrape", help="Scrape poems from a website")
-    scrape.add_argument("base_url", help="Base URL with paginated poems, e.g. https://example.org/poems")
-    scrape.add_argument("poem_selector", help="CSS selector for poem container")
-    scrape.add_argument("paragraph_selector", help="CSS selector for paragraphs within a poem container")
+    scrape.add_argument("base_url", nargs="?", help="Base URL with paginated poems, e.g. https://example.org/poems")
+    scrape.add_argument("poem_selector", nargs="?", help="CSS selector for poem container")
+    scrape.add_argument("paragraph_selector", nargs="?", help="CSS selector for paragraphs within a poem container")
     scrape.add_argument("--title-selector", default=None, help="CSS selector for poem title inside container")
-    scrape.add_argument("--start-page", type=int, default=1)
-    scrape.add_argument("--end-page", type=int, default=3)
-    scrape.add_argument("--delay", type=float, default=1.0, help="Delay between page requests in seconds")
+    scrape.add_argument("--start-page", type=int)
+    scrape.add_argument("--end-page", type=int)
+    scrape.add_argument("--delay", type=float, help="Delay between page requests in seconds")
+    scrape.add_argument("--preset", choices=sorted(SCRAPER_PRESETS.keys()), help="Use a predefined site profile")
     scrape.add_argument("--output", default="scraped_poems.json", help="Path to save scraped poems")
     scrape.set_defaults(func=run_scrape)
 
