@@ -63,8 +63,22 @@ class ScraperConfig:
 
 # Pre-configured selectors for popular open catalogs.
 SCRAPER_PRESETS = {
-    # poetryclub.com.ua provides a catalogue of poems with ?page=N pagination
-    # and poem blocks under div.vers with an optional h3 title.
+    # Poesia.org.ua lists Ukrainian poems with traditional WordPress markup and
+    # standard page=N pagination. Each poem is rendered inside an <article>
+    # with the text living under a .entry-content block.
+    "poesia": ScraperConfig(
+        base_url="https://poesia.org.ua/ua/poems",
+        poem_selector="article",
+        paragraph_selector=".entry-content p",
+        title_selector="h2.entry-title, h1.entry-title",
+        start_page=1,
+        end_page=5,
+        delay_seconds=1.2,
+        obey_robots=True,
+    ),
+    # Former preset retained as a fallback for users who have explicit
+    # permission to crawl poetryclub.com.ua. Kept with obey_robots=True by
+    # default and not referenced in the README examples.
     "poetryclub": ScraperConfig(
         base_url="https://poetryclub.com.ua/listpoems.php",
         poem_selector="div.vers",
@@ -72,17 +86,6 @@ SCRAPER_PRESETS = {
         title_selector="div.vers > h3",
         start_page=1,
         end_page=5,
-        delay_seconds=1.2,
-        obey_robots=True,
-    ),
-    # Another catalogue page that groups poems by meter (fallback example).
-    "poetryclub-meter": ScraperConfig(
-        base_url="https://poetryclub.com.ua/metrs/index.php",
-        poem_selector="div.vers",
-        paragraph_selector="div.vers > p",
-        title_selector="div.vers > h3",
-        start_page=1,
-        end_page=3,
         delay_seconds=1.2,
         obey_robots=True,
     ),
