@@ -68,6 +68,16 @@ class PoetryTrainer:
 
         tokenized = dataset["train"].map(self._tokenize_function, batched=True, remove_columns=dataset["train"].column_names)
         tokenized_ds = DatasetDict({"train": tokenized})
+        eval_split: Optional[str] = None
+        for candidate in ("validation", "eval", "test"):
+            if candidate in dataset:
+                eval_split = candidate
+                break
+        eval_dataset = None
+        if eval_split:
+            eval_dataset = dataset[eval_split].map(
+                self._tokenize_function, batched=True, remove_columns=dataset[eval_split].column_names
+            )
 
         data_collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
@@ -81,8 +91,8 @@ class PoetryTrainer:
             learning_rate=self.config.learning_rate,
             num_train_epochs=self.config.num_train_epochs,
             warmup_steps=self.config.warmup_steps,
-            evaluation_strategy="steps",
-            eval_steps=self.config.eval_steps,
+            evaluation_strategy="steps" if eval_dataset is not None else "no",
+            eval_steps=self.config.eval_steps if eval_dataset is not None else None,
             save_steps=self.config.save_steps,
             logging_steps=self.config.logging_steps,
             fp16=self.config.fp16,
@@ -93,6 +103,7 @@ class PoetryTrainer:
             model=self.model,
             args=args,
             train_dataset=tokenized_ds["train"],
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
         )
 
