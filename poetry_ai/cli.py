@@ -64,9 +64,11 @@ def build_scraper_config(args) -> ScraperConfig:
             end_page=args.end_page or base.end_page,
             delay_seconds=args.delay if args.delay is not None else base.delay_seconds,
             user_agent=base.user_agent,
-            obey_robots=base.obey_robots,
+            obey_robots=base.obey_robots if not args.ignore_robots else False,
         )
         LOGGER.info("Using preset '%s' with base URL %s", args.preset, config.base_url)
+        if not config.obey_robots:
+            LOGGER.warning("Robots.txt checks are disabled; crawl responsibly.")
         return config
 
     if not (args.base_url and args.poem_selector and args.paragraph_selector):
@@ -80,6 +82,7 @@ def build_scraper_config(args) -> ScraperConfig:
         start_page=args.start_page,
         end_page=args.end_page,
         delay_seconds=args.delay if args.delay is not None else 1.0,
+        obey_robots=not args.ignore_robots,
     )
 
 
@@ -153,6 +156,12 @@ def main():
     scrape.add_argument("--end-page", type=int)
     scrape.add_argument("--delay", type=float, help="Delay between page requests in seconds")
     scrape.add_argument("--preset", choices=sorted(SCRAPER_PRESETS.keys()), help="Use a predefined site profile")
+    scrape.add_argument(
+        "--ignore-robots",
+        action="store_true",
+        default=False,
+        help="Skip robots.txt checks (use responsibly if you have permission).",
+    )
     scrape.add_argument("--output", default="scraped_poems.json", help="Path to save scraped poems")
     scrape.set_defaults(func=run_scrape)
 

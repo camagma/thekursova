@@ -103,16 +103,27 @@ class PoemScraper:
         if not self.config.obey_robots:
             LOGGER.warning("Robots.txt check disabled by configuration; crawl responsibly.")
             return True
+
         robots_url = urljoin(self.config.base_url, "/robots.txt")
         headers = {"User-Agent": self.config.user_agent}
         try:
             resp = requests.get(robots_url, headers=headers, timeout=10)
         except requests.RequestException as exc:
-            LOGGER.warning("Robots.txt check failed: %s", exc)
-            return False
-        if resp.status_code != 200:
-            LOGGER.warning("Robots.txt returned status %s", resp.status_code)
-            return False
+            LOGGER.warning(
+                "Robots.txt check failed (%s). Proceeding because availability is unknown; "
+                "use obey_robots=False to explicitly ignore.",
+                exc,
+            )
+            return True
+
+        if resp.status_code >= 400:
+            LOGGER.warning(
+                "Robots.txt returned status %s. Proceeding because policy is unknown; "
+                "use obey_robots=False to explicitly ignore.",
+                resp.status_code,
+            )
+            return True
+
         disallow_root = any(
             line.strip().lower().startswith("disallow: /") for line in resp.text.splitlines()
         )
