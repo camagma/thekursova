@@ -63,9 +63,23 @@ class ScraperConfig:
 
 # Pre-configured selectors for popular open catalogs.
 SCRAPER_PRESETS = {
+    # OnlyArt (onlyart.org.ua) — WordPress-based catalogue with accessible
+    # category pagination (`?paged=N`) and predictable markup inside articles.
+    # Each poem sits in an <article> with the body in `.entry-content p` and
+    # the title exposed via `.entry-title`.
+    "onlyart": ScraperConfig(
+        base_url="https://onlyart.org.ua/category/ukrayinski-poety/",
+        poem_selector="article",
+        paragraph_selector=".entry-content p",
+        title_selector=".entry-title, h1.entry-title, h2.entry-title",
+        page_param="paged",
+        start_page=1,
+        end_page=5,
+        delay_seconds=1.2,
+        obey_robots=True,
+    ),
     # Poesia.org.ua lists Ukrainian poems with traditional WordPress markup and
-    # standard page=N pagination. Each poem is rendered inside an <article>
-    # with the text living under a .entry-content block.
+    # standard page=N pagination. Kept as a secondary option.
     "poesia": ScraperConfig(
         base_url="https://poesia.org.ua/ua/poems",
         poem_selector="article",
