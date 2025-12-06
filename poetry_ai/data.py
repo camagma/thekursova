@@ -50,8 +50,8 @@ class PoemSample:
 @dataclass
 class ScraperConfig:
     base_url: str
-    poem_selector: str
-    paragraph_selector: str
+    poem_selector: str = ""
+    paragraph_selector: str = ""
     page_template: Optional[str] = None
     title_selector: Optional[str] = None
     link_selector: Optional[str] = None
@@ -61,6 +61,14 @@ class ScraperConfig:
     delay_seconds: float = 1.0
     user_agent: str = "poetry-research-bot/0.1"
     obey_robots: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.base_url:
+            raise ValueError("ScraperConfig.base_url must be provided")
+        if not self.poem_selector:
+            raise ValueError("ScraperConfig.poem_selector must be provided")
+        if not self.paragraph_selector:
+            raise ValueError("ScraperConfig.paragraph_selector must be provided")
 
 
 # Pre-configured selectors for popular open catalogs.
