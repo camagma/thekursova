@@ -53,6 +53,7 @@ class ScraperConfig:
     poem_selector: str
     paragraph_selector: str
     title_selector: Optional[str] = None
+    link_selector: Optional[str] = None
     page_param: str = "page"
     start_page: int = 1
     end_page: int = 3
@@ -72,6 +73,7 @@ SCRAPER_PRESETS = {
         poem_selector="article",
         paragraph_selector=".entry-content p",
         title_selector=".entry-title, h1.entry-title, h2.entry-title",
+        link_selector="h2.entry-title a, header.entry-header a, .entry-title a",
         page_param="paged",
         start_page=1,
         end_page=5,
@@ -85,6 +87,7 @@ SCRAPER_PRESETS = {
         poem_selector="article",
         paragraph_selector=".entry-content p",
         title_selector="h2.entry-title, h1.entry-title",
+        link_selector="h2.entry-title a, header.entry-header a, .entry-title a",
         start_page=1,
         end_page=5,
         delay_seconds=1.2,
@@ -98,6 +101,7 @@ SCRAPER_PRESETS = {
         poem_selector="div.vers",
         paragraph_selector="div.vers > p",
         title_selector="div.vers > h3",
+        link_selector=None,
         start_page=1,
         end_page=5,
         delay_seconds=1.2,
@@ -115,6 +119,34 @@ class PoemScraper:
 
     def __init__(self, config: ScraperConfig):
         self.config = config
+
+    def _parse_poem_from_block(self, block, url: str) -> Optional[PoemSample]:
+        paras = [p.get_text(" ", strip=True) for p in block.select(self.config.paragraph_selector)]
+        if not paras:
+            return None
+        text = clean_poem_text("\n".join(paras))
+        title = ""
+        if self.config.title_selector:
+            title_el = block.select_one(self.config.title_selector)
+            if title_el:
+                title = title_el.get_text(strip=True)
+        return PoemSample(text=text, title=title, url=url)
+
+    def _parse_poem_from_page(self, url: str, headers: dict) -> Optional[PoemSample]:
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            LOGGER.warning("Failed to fetch poem page %s: %s", url, exc)
+            return None
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        sample = self._parse_poem_from_block(soup, url)
+        if sample and not sample.title:
+            # Fallback to the document title if selectors missed.
+            if soup.title and soup.title.string:
+                sample.title = soup.title.string.strip()
+        return sample
 
     def _allowed(self) -> bool:
         if not self.config.obey_robots:
@@ -152,6 +184,7 @@ class PoemScraper:
 
         poems: List[PoemSample] = []
         headers = {"User-Agent": self.config.user_agent}
+        seen_urls = set()
         for page in range(self.config.start_page, self.config.end_page + 1):
             url = f"{self.config.base_url}?{self.config.page_param}={page}"
             try:
@@ -163,16 +196,21 @@ class PoemScraper:
 
             soup = BeautifulSoup(resp.text, "html.parser")
             for block in soup.select(self.config.poem_selector):
-                paras = [p.get_text(" ", strip=True) for p in block.select(self.config.paragraph_selector)]
-                if not paras:
-                    continue
-                text = clean_poem_text("\n".join(paras))
-                title = ""
-                if self.config.title_selector:
-                    title_el = block.select_one(self.config.title_selector)
-                    if title_el:
-                        title = title_el.get_text(strip=True)
-                poems.append(PoemSample(text=text, title=title, url=url))
+                if self.config.link_selector:
+                    link_el = block.select_one(self.config.link_selector)
+                    href = link_el.get("href") if link_el else None
+                    if href:
+                        detail_url = urljoin(self.config.base_url, href)
+                        if detail_url in seen_urls:
+                            continue
+                        seen_urls.add(detail_url)
+                        sample = self._parse_poem_from_page(detail_url, headers)
+                        if sample:
+                            poems.append(sample)
+                            continue
+                sample = self._parse_poem_from_block(block, url)
+                if sample:
+                    poems.append(sample)
             time.sleep(self.config.delay_seconds)
         return poems
 
@@ -189,16 +227,30 @@ class DatasetBuilder:
         return ds.map(lambda ex: {"text": self.cleaner(ex["text"])})
 
     def from_samples(self, samples: Iterable[PoemSample]) -> Dataset:
-        records = [
-            {
-                "text": self.cleaner(sample.text),
-                "title": sample.title,
-                "author": sample.author,
-                "url": sample.url,
-            }
-            for sample in samples
-            if sample.text.strip()
-        ]
+        records = []
+        for sample in samples:
+            if isinstance(sample, dict):
+                text = sample.get("text", "")
+                title = sample.get("title", "")
+                author = sample.get("author", "")
+                url = sample.get("url", "")
+            else:
+                text = getattr(sample, "text", "")
+                title = getattr(sample, "title", "")
+                author = getattr(sample, "author", "")
+                url = getattr(sample, "url", "")
+
+            if not str(text).strip():
+                continue
+
+            records.append(
+                {
+                    "text": self.cleaner(str(text)),
+                    "title": str(title),
+                    "author": str(author),
+                    "url": str(url),
+                }
+            )
         return Dataset.from_list(records) if records else Dataset.from_list([])
 
     def combine(self, primary: Dataset, extra: Optional[Dataset] = None) -> DatasetDict:
