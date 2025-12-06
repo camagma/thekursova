@@ -56,6 +56,7 @@ def build_scraper_config(args) -> ScraperConfig:
         base = SCRAPER_PRESETS[args.preset]
         config = ScraperConfig(
             base_url=args.base_url or base.base_url,
+            page_template=args.page_template or base.page_template,
             poem_selector=args.poem_selector or base.poem_selector,
             paragraph_selector=args.paragraph_selector or base.paragraph_selector,
             title_selector=args.title_selector or base.title_selector,
@@ -76,6 +77,7 @@ def build_scraper_config(args) -> ScraperConfig:
 
     return ScraperConfig(
         base_url=args.base_url,
+        page_template=args.page_template,
         poem_selector=args.poem_selector,
         paragraph_selector=args.paragraph_selector,
         title_selector=args.title_selector,
@@ -152,6 +154,7 @@ def main():
     scrape.add_argument("poem_selector", nargs="?", help="CSS selector for poem container")
     scrape.add_argument("paragraph_selector", nargs="?", help="CSS selector for paragraphs within a poem container")
     scrape.add_argument("--title-selector", default=None, help="CSS selector for poem title inside container")
+    scrape.add_argument("--page-template", default=None, help="Optional pagination template, e.g. {base}/page/{page}/")
     scrape.add_argument("--start-page", type=int)
     scrape.add_argument("--end-page", type=int)
     scrape.add_argument("--delay", type=float, help="Delay between page requests in seconds")

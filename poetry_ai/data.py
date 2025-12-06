@@ -50,6 +50,7 @@ class PoemSample:
 @dataclass
 class ScraperConfig:
     base_url: str
+    page_template: Optional[str] = None
     poem_selector: str
     paragraph_selector: str
     title_selector: Optional[str] = None
@@ -69,7 +70,8 @@ SCRAPER_PRESETS = {
     # Each poem sits in an <article> with the body in `.entry-content p` and
     # the title exposed via `.entry-title`.
     "onlyart": ScraperConfig(
-        base_url="https://onlyart.org.ua/category/ukrayinski-poety/",
+        base_url="https://onlyart.org.ua/category/ukrayinski-poety",
+        page_template="{base}/page/{page}/",
         poem_selector="article",
         paragraph_selector=".entry-content p",
         title_selector=".entry-title, h1.entry-title, h2.entry-title",
@@ -186,7 +188,17 @@ class PoemScraper:
         headers = {"User-Agent": self.config.user_agent}
         seen_urls = set()
         for page in range(self.config.start_page, self.config.end_page + 1):
-            url = f"{self.config.base_url}?{self.config.page_param}={page}"
+            if self.config.page_template:
+                url = (
+                    self.config.base_url
+                    if page == 1
+                    else self.config.page_template.format(
+                        base=self.config.base_url.rstrip("/"), page=page
+                    )
+                )
+            else:
+                sep = "&" if "?" in self.config.base_url else "?"
+                url = f"{self.config.base_url}{sep}{self.config.page_param}={page}"
             try:
                 resp = requests.get(url, headers=headers, timeout=15)
                 resp.raise_for_status()
@@ -200,7 +212,7 @@ class PoemScraper:
                     link_el = block.select_one(self.config.link_selector)
                     href = link_el.get("href") if link_el else None
                     if href:
-                        detail_url = urljoin(self.config.base_url, href)
+                        detail_url = urljoin(resp.url, href)
                         if detail_url in seen_urls:
                             continue
                         seen_urls.add(detail_url)
