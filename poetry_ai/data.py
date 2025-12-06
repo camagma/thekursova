@@ -18,6 +18,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from datasets import Dataset, DatasetDict, load_dataset
+from datasets.exceptions import DatasetNotFoundError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -243,7 +244,15 @@ class DatasetBuilder:
 
     def load_hf(self, name: str, split: str = "train") -> Dataset:
         LOGGER.info("Loading dataset %s", name)
-        ds = load_dataset(name, split=split)
+        try:
+            ds = load_dataset(name, split=split)
+        except DatasetNotFoundError as exc:
+            raise ValueError(
+                "Hugging Face dataset '%s' is unavailable. "
+                "Pass --dataset none to rely solely on scraped/manual poems "
+                "or choose another public dataset (e.g. syvin/ukrainian-literature)."
+                % name
+            ) from exc
         return ds.map(lambda ex: {"text": self.cleaner(ex["text"])})
 
     def from_samples(self, samples: Iterable[PoemSample]) -> Dataset:

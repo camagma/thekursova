@@ -35,7 +35,9 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-DEFAULT_HF_DATASET = "staliuk/ukrainian-poetry"
+# Default to manual/scraped-only training to avoid failures when HF datasets
+# are unavailable in some regions. Provide a suggested public dataset in docs.
+DEFAULT_HF_DATASET = "none"
 DEFAULT_MODEL = "facebook/xglm-1.7B"
 
 
