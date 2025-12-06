@@ -273,8 +273,29 @@ class DatasetBuilder:
             )
         return Dataset.from_list(records) if records else Dataset.from_list([])
 
-    def combine(self, primary: Dataset, extra: Optional[Dataset] = None) -> DatasetDict:
-        if extra is not None and len(extra) > 0:
+    def combine(
+        self, primary: Optional[Dataset], extra: Optional[Dataset] = None
+    ) -> DatasetDict:
+        """Merge the base dataset with optional additional samples.
+
+        Args:
+            primary: Core dataset (e.g., Hugging Face split). May be ``None``
+                when training only on scraped/manual poems.
+            extra: Optional supplemental dataset built from scraped or manual
+                entries.
+
+        Returns:
+            A ``DatasetDict`` with a single ``train`` split.
+
+        Raises:
+            ValueError: If both inputs are missing or empty.
+        """
+
+        if primary is None or len(primary) == 0:
+            if extra is None or len(extra) == 0:
+                raise ValueError("No data provided: supply a dataset or scraped poems")
+            merged = extra
+        elif extra is not None and len(extra) > 0:
             merged = Dataset.from_dict({
                 "text": primary["text"] + extra["text"],
             })

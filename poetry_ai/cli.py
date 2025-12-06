@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from datasets import Dataset
+from datasets import Dataset, DatasetDict
 
 try:  # pragma: no cover - import shim for script-style execution
     from .data import DatasetBuilder, PoemScraper, ScraperConfig, SCRAPER_PRESETS
@@ -39,9 +39,13 @@ DEFAULT_HF_DATASET = "staliuk/ukrainian-poetry"
 DEFAULT_MODEL = "facebook/xglm-1.7B"
 
 
-def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> Dataset:
+def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> DatasetDict:
     builder = DatasetBuilder()
-    base = builder.load_hf(hf_dataset)
+    base: Optional[Dataset] = None
+    if hf_dataset and hf_dataset.lower() != "none":
+        base = builder.load_hf(hf_dataset)
+    else:
+        LOGGER.warning("HF dataset skipped (value=%s); training will rely on scraped/manual data", hf_dataset)
     scraped_ds: Optional[Dataset] = None
     if scraped_path and scraped_path.exists():
         samples = json.loads(scraped_path.read_text(encoding="utf-8"))
@@ -169,7 +173,7 @@ def main():
     scrape.set_defaults(func=run_scrape)
 
     train = sub.add_parser("train", help="Fine-tune the model on poetry")
-    train.add_argument("--dataset", default=DEFAULT_HF_DATASET, help="Hugging Face dataset name")
+    train.add_argument("--dataset", default=DEFAULT_HF_DATASET, help="Hugging Face dataset name or 'none' to use only scraped/manual")
     train.add_argument("--scraped", help="Optional path to scraped_poems.json")
     train.add_argument("--model-name", default=DEFAULT_MODEL, help="Base model to fine-tune")
     train.add_argument("--output-dir", default="poetry-model", help="Where to save the fine-tuned model")
