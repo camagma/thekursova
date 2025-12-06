@@ -242,17 +242,34 @@ class DatasetBuilder:
     def __init__(self, cleaner: Callable[[str], str] = clean_poem_text):
         self.cleaner = cleaner
 
-    def load_hf(self, name: str, split: str = "train") -> Dataset:
+    def load_hf(
+        self, name: str, split: str = "train", raise_on_missing: bool = True
+    ) -> Optional[Dataset]:
+        """Load a Hugging Face dataset with optional graceful degradation.
+
+        Args:
+            name: Dataset path on the Hub.
+            split: Split name to load.
+            raise_on_missing: If ``True`` (default), propagate a
+                ``DatasetNotFoundError`` wrapped in ``ValueError``. If ``False``,
+                log a warning and return ``None`` so the caller can fall back to
+                scraped/manual corpora.
+        """
+
         LOGGER.info("Loading dataset %s", name)
         try:
             ds = load_dataset(name, split=split)
         except DatasetNotFoundError as exc:
-            raise ValueError(
+            message = (
                 "Hugging Face dataset '%s' is unavailable. "
                 "Pass --dataset none to rely solely on scraped/manual poems "
                 "or choose another public dataset (e.g. syvin/ukrainian-literature)."
                 % name
-            ) from exc
+            )
+            if raise_on_missing:
+                raise ValueError(message) from exc
+            LOGGER.warning(message)
+            return None
         return ds.map(lambda ex: {"text": self.cleaner(ex["text"])})
 
     def from_samples(self, samples: Iterable[PoemSample]) -> Dataset:

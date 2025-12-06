@@ -69,6 +69,12 @@ python -m poetry_ai.cli train \
   --max-length 256 --train-batch-size 2 --num-train-epochs 3
 ```
 
+Якщо переданий датасет із Hugging Face недоступний, CLI тепер продовжить тренування
+на локальних/скраплених даних (за їх наявності) та виведе попередження. Щоб
+виключити звернення до Hub, вкажіть `--dataset none` (значення за замовчуванням)
+або одразу використайте відкритий доступний датасет на кшталт
+`syvin/ukrainian-literature`.
+
 ## Генерація
 ```bash
 python -m poetry_ai.cli generate "Осінній вечір над містом" \

@@ -45,7 +45,12 @@ def build_dataset(hf_dataset: str, scraped_path: Optional[Path]) -> DatasetDict:
     builder = DatasetBuilder()
     base: Optional[Dataset] = None
     if hf_dataset and hf_dataset.lower() != "none":
-        base = builder.load_hf(hf_dataset)
+        base = builder.load_hf(hf_dataset, raise_on_missing=False)
+        if base is None:
+            LOGGER.warning(
+                "Proceeding without Hugging Face dataset '%s'; scraped/manual data will be used if provided.",
+                hf_dataset,
+            )
     else:
         LOGGER.warning("HF dataset skipped (value=%s); training will rely on scraped/manual data", hf_dataset)
     scraped_ds: Optional[Dataset] = None
