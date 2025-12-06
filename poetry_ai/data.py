@@ -50,9 +50,9 @@ class PoemSample:
 @dataclass
 class ScraperConfig:
     base_url: str
-    page_template: Optional[str] = None
     poem_selector: str
     paragraph_selector: str
+    page_template: Optional[str] = None
     title_selector: Optional[str] = None
     link_selector: Optional[str] = None
     page_param: str = "page"
